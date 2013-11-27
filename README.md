@@ -14,7 +14,7 @@ MAX Versioning
 ==============
 The idea behind MAX versioning is that every commit accomplishes one of three
 possible tasks: a Milestone, feAture, or fiX.  MAX version numbers are three
-integer values separated by dots.  example: 0.2.14  The first value indicates
+integer values separated by dots.  Example: `0.2.14`.  The first value indicates
 the Milestone, the second the feAture and the final value represents the fiX.
 
 A milestone is a point of total completion of a project.  It's a major release.
@@ -38,15 +38,16 @@ this script.
 
 Install
 =======
-This is a bash script written for linux.  We assume it might work from a MAC, 
+This is a bash script written for linux.  We assume it might work from a mac, 
 but it certainly won't work from windows.  We recommend copying the ssw_commit
-file into the hooks directory of a git repository.  This can be found at 
+file into the hooks directory of a git repository.  This can be done by:
 ```bash
-#Run these commands from the root directory of your repository (after having run git init)
+#Run these commands from the root directory of your repository
+#  - this can only be done after the repository is initialized
 wget -O .git/hooks/ssw_commit http://github.com/savsw/auto-git/raw/master/ssw_commit
 chmod 755 .git/hooks/ssw_commit
 ```
-With the script copied to this location, we then need create an alias to make
+With the script copied to this location, you then need create an alias to make
 it easier to call the script.  The goal of the script is to streamline
 versioning during the commit process, so let's call the alias 'commit'
 ```bash
@@ -58,7 +59,9 @@ either open a new terminal or source the file to make the changes active.
 ```bash
 source ~/.bash_aliases
 ```
-That's it!
+There's just one last step.  Edit the ssw_commit script to match the needs of
+the repository.  This might be as simple as editing the FILE declaration to
+point to the relative location of your `package.json` file.
 
 Usage
 =====
