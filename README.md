@@ -1,9 +1,11 @@
-Remembering to bump a version number with a commit is a tedious process.  At 
-Savannah Scriptworks, our core development work is done in Node.JS.  The script
-included herein automatically increments the version  of a project depending
-upon the type of commit.  It determines what type of commit is occurring by
-asking the developer one simple question.  In structuring the versioning process
-we created the MAX versioning concept.
+Remembering to bump a version number with a commit is a tedious process.  This 
+project provides a commit script designed to automatically increment the version
+of a project found in a `package.json` file (commonly used by Node.JS projects).
+The script included herein automatically increments the version of a project 
+depending upon the type of commit.  It determines what type of commit is
+occurring by asking the developer one simple question.  In structuring the
+versioning process we created the MAX versioning concept, which might not be
+a unique concept, but we've taken the time to formalize it.
 
 The script provided here is a supplemental library.  It runs the `git commit` 
 process; it does not replace it.  If you ever run into a versioning dilemma
@@ -31,9 +33,9 @@ It is natural for Node applications to include the file `package.json`.  Even if
 the application is private and not published through npm, the package.json file
 provides benefits such as streamlineing management of dependencies.
 
-Because our preferred platform for development is Node.JS, we naturally track
-the version number of our projects within the package.json file.  Forgetting to
-increment the version and add the package.json file to commits is why we wrote
+This script was designed for Node.JS projects and so it maintains the version
+number of the project using the `package.json` file.  Forgetting to increment 
+the version in this file and then add this file to the commit is why we wrote
 this script.
 
 Install
@@ -72,6 +74,23 @@ run the standard `git commit` command.
 
 When the script runs, it'll ask the developer if the commit is a Milestone, 
 feAture, or fiX and increment the version number accordingly.
+
+Collaboration
+=============
+The commit script of this project recognizes one primary central authority that
+enables collaboration.  The idea is that if all developers work against one
+central authority, their version numbers won't collide.  If an origin is defined
+for the repository, the script will fetch from origin before versioning and
+push to origin after a successful commit.
+
+During the commit process, the script will fetch from origin (if you prefer
+to call the primary remote source something other than "origin", please edit the
+ORIGIN  declaration in the script).  If there is a discrepancy between origin
+and local, the commit will be aborted.  This comparison is done in attempt to
+reduce discrepancies caused through the natural course of collaboration.  Race
+conditions still exist, and if the version number should ever be corrupted as a
+result, you can always manually edit the version number prior to a commit to put
+things proper again.
 
 License
 =======
