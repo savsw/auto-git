@@ -43,7 +43,7 @@ but it certainly won't work from windows.  We recommend copying the ssw_commit
 file into the hooks directory of a git repository.  This can be found at 
 ```bash
 #Run these commands from the root directory of your repository (after having run git init)
-wget -O .git/hooks/ssw_commit http://github.com/savsw/auto-git/blob/master/ssw_commit
+wget -O .git/hooks/ssw_commit http://github.com/savsw/auto-git/raw/master/ssw_commit
 chmod 755 .git/hooks/ssw_commit
 ```
 With the script copied to this location, we then need create an alias to make
