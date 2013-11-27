@@ -1,0 +1,235 @@
+#!/bin/bash
+# sswGitAutomation automates portions of git processes.
+# Copyright (C) 2013 Savannah Scriptworks (savsw.org).
+#
+#    This program is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU Lesser General Public License as
+#    published by the Free Software Foundation, either version 3 of the
+#    License, or (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License
+#    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+# Authors:
+#   Secesh aka Matthew R Chase (matt@chasefox.net)
+#   Caligula aka Ben Chase (bpc@chasehome.net)
+# Info:
+#   For information about this file including installation and usage,
+#   please see README
+##########################################################################
+#
+# The primary purpose of this file is to ensure MAX versioning during
+# commits.  We cannot use standard git hooks (such as pre-commit)
+# because there is no hook provided for commit-abort and in the event
+# of an aborted commit, the version number change will need reversion.
+#
+################
+
+#This is the JSON file that includes the version.
+FILE=server/package.json
+
+#This is the git name of the master remote branch.
+#We check sync with ORIGIN prior to commit to improve consistency
+#of version numbering with multiple developers.  For this same
+#reason, we will immediately push to ORIGIN upon successful commit.
+ORIGIN=origin
+
+# When using these, echo statements must allow escape sequences (-e option)
+RED="\E[0;31m"
+GREEN="\E[0;32m"
+YELLOW="\E[0;33m"
+BLUE="\E[0;34m"
+PURPLE="\E[0;35m"
+TEAL="\E[0;36m"
+GREY="\E[0;37m"
+RESET="\E[0m"
+
+
+# This is the absolute path of the repository
+BASE=$(git rev-parse --show-toplevel 2>/dev/null)
+if [ $? -ne 0 ]; then
+    echo Cannot commit changes in an unitialized repository
+    echo -e Perhaps you need to run ${TEAL}git init$RESET
+    exit
+fi
+cd $BASE
+
+#
+# Step 1: check if there are unstaged changes.
+# 
+staged=$(git diff --cached --name-only)
+if [ -z "$staged" ]; then
+    echo No changes have been staged.  canceling commit.
+    exit
+fi
+
+#
+# Step 2: grab the current version.
+#   we'll use this to restore the version if the commit is aborted.
+#
+VERSION=$(cat $FILE |grep \"version\" |awk -F '[""]' '{print $4}')
+if [ -z "$VERSION" ]; then
+    echo Failed to retrieve the current version.
+    exit
+fi
+if [[ ! $VERSION =~ ^[0-9]+.[0-9]+.[0-9]+$ ]]; then
+	echo -e "The version found in $YELLOW$FILE$RESET does not appear"
+	echo to be a MAX version.  MAX version numbers are comprised of
+	echo three integer values separated by dots.  example: 0.2.11
+	exit
+fi
+#Parse the portions of the version number
+read MILESTONE FEATURE FIX <<<$(IFS="."; echo $VERSION)
+#
+# Step 3: check if the file containing the version number exists,
+#   is tracked, and any changes are already staged.  We'll be 
+#   making a change within this file and adding that change to 
+#   the commit.  We don't want to trample on any unstaged changes
+#   to this file during the commit process.
+#
+
+# First check if the file exists.
+if [ ! -f $FILE ]; then
+    echo -e Cannot commit changes because $YELLOW$FILE$RESET does not exist.
+    echo Please ensure $FILE is in your source repository and 
+    echo that it is properly formatted as JSON with a MAX version value.
+    exit
+fi
+# Then check if it's tracked by git (while discarding stderr and stdout).
+git ls-files $FILE --error-unmatch >/dev/null 2>&1
+if [ $? -ne 0 ]; then
+    echo -e Cannot commit changes because $YELLOW$FILE$RESET is not tracked by git.  
+    echo -e Perhaps you need to run ${TEAL}git add $FILE$RESET
+    exit
+fi
+# Finally, check the diff to ensure changes are staged.
+stagedversion=$(git ls-files --modified $FILE)
+if [ -n "$stagedversion" ]; then
+    echo -e Cannot commit changes because $YELLOW$FILE$RESET has unstaged changes.  
+    echo -e Perhaps you need to run ${TEAL}git add $FILE$RESET
+    echo -e or discard your changes ${TEAL}git checkout $FILE$RESET
+    exit
+fi
+
+
+# Step 4: check the local repository against origin.
+#   we need to ensure the local version is up-to-date
+#   so that when the version gets bumped, it'll be
+#   accurate.
+#
+
+# First check the branch
+branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
+if [ $? -ne 0 ]; then
+    echo Error checking working branch in preparation
+    echo to check sync with origin.  This can occur
+    echo when the repository is brand new - before the
+    echo first commit.  Other causes as yet unknown.
+    exit
+fi
+if [ ! $branch ]; then
+    echo Error checking working branch - no branch
+    echo This is an unexpected/unhandled exception.
+    exit
+fi
+# Before we check against origin, we need to know if
+# we have a remote repository
+git remote show $ORIGIN >/dev/null 2>&1
+HASREMOTE=$?
+# Next check our branch against ORIGIN.
+if [ $HASREMOTE -eq 0 ]; then
+  git remote update >/dev/null 2>&1
+  lR=$(git rev-list --max-count=1 $branch)
+  oR=$(git rev-list --max-count=1 $ORIGIN/$branch)
+  if [ "$lR" != "$oR" ]; then
+    echo Your repository is out of sync with $ORIGIN/$branch
+    echo Please resolve this before attempting a commit.
+    echo -e Perhaps you should ${TEAL}git pull $ORIGIN$RESET
+    exit
+  fi
+fi
+
+#
+# Step 5: increment the version.
+#   we ask the developer what type of commit this is (M|A|X)
+#   and then increment the version accordingly.
+#
+
+echo
+echo -e The current version is $GREEN$VERSION$RESET
+
+COUNTER=0
+while [ $COUNTER -lt 10 ]; do
+	COUNTER=$((COUNTER+1))
+    echo Is this commit a Milestone, feAture, or fiX?
+    echo -en "Please enter (${YELLOW}M${RESET}|${YELLOW}A${RESET}|${YELLOW}X${RESET}) or ${YELLOW}Q${RESET}uit: "
+    # read manpage sucks.  credit: google.
+    read -n1 MAX
+    echo
+    #convert input to uppercase.  could use ^^, but only care about one letter.
+    MAX=${MAX^}
+    if [ "$MAX" == "Q" ]; then
+        echo quitting
+        exit
+    elif [ "$MAX" == "M" ]; then
+	    MILESTONE=$((MILESTONE+1))
+	    FEATURE=0
+	    FIX=0
+	    COUNTER=$((COUNTER+10))
+    elif [ "$MAX" == "A" ]; then
+        FEATURE=$((FEATURE+1))
+	    FIX=0
+	    COUNTER=$((COUNTER+10))
+    elif [ "$MAX" == "X" ]; then
+	    FIX=$((FIX+1))
+	    COUNTER=$((COUNTER+10))
+    else
+    	echo Sorry, that input was not valid.
+    	if [ $COUNTER -gt 3 ]; then
+    		echo quitting
+    		exit
+    	fi
+    fi
+done
+NEWVERSION="$MILESTONE.$FEATURE.$FIX"
+
+# replace the old version number with the new version number in FILE.
+# This isn't a perfect solution, but it's probably accurate enough.
+# bash isn't ideal for this type of work, but we chose to use a shell
+# script because we wanted to be language agnostic.... but that of 
+# course boxed us into using junky shell script syntax.  c'est la vie.
+sed -i -e "s/\"version\": *\"${VERSION}\"/\"version\": \"${NEWVERSION}\"/" $FILE
+git add $FILE
+
+#
+# Step 6: commit.
+#
+git commit
+
+#
+# Step 7: process commit result.
+#   if the commit was aborted, the version
+#   increment must be reverted.
+#
+if [ $? -ne 0 ]; then
+    # If the exit status != 0, the commit was aborted.
+    # in this case, we need to revert the version change.
+    #
+    # we don't do `git checkout $FILE` in case there were other changed staged before
+    # we bumped the version.
+    sed -i -e "s/\"version\": *\"${NEWVERSION}\"/\"version\": \"${VERSION}\"/" $FILE
+	git add $FILE
+	echo because the commit was aborted, the version change was reverted.
+else
+	echo -e git committed with $GREEN$NEWVERSION$RESET
+    if [ $HASREMOTE -eq 0 ]; then
+    	echo and pushed to $ORIGIN/$branch
+        git push $ORIGIN/$branch
+    fi
+fi
+echo
