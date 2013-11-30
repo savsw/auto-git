@@ -228,8 +228,8 @@ if [ $? -ne 0 ]; then
 else
 	echo -e git committed with $GREEN$NEWVERSION$RESET
     if [ $HASREMOTE -eq 0 ]; then
-    	echo and pushed to $ORIGIN/$branch
-        git push $ORIGIN/$branch
+    	echo and pushed to $ORIGIN $branch
+        git push $ORIGIN $branch
     fi
 fi
 echo
