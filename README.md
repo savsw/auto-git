@@ -27,6 +27,13 @@ of completion along the path towards the next major release.
 Everything else is a fiX.  This includes bugfixes, housekeeping, tweaking, and
 all other steps taken towards any point of completion.
 
+vs Semantic Versioning
+======================
+MAX versioning fills a different need from Semantic Versioning. If the project
+is an API that other developers will rely on, it should use Semantic Versioning
+to promote stability for users of the API. MAX versioning was created to provide
+sensible versioning for smaller or more fluid projects.
+
 Tracking the version number
 ===========================
 It is natural for Node applications to include the file `package.json`.  Even if
@@ -49,9 +56,20 @@ file into the hooks directory of a git repository.  This can be done by:
 wget -O .git/hooks/ssw_commit http://github.com/savsw/auto-git/raw/master/ssw_commit
 chmod 755 .git/hooks/ssw_commit
 ```
-With the script copied to this location, you then need create an alias to make
-it easier to call the script.  The goal of the script is to streamline
-versioning during the commit process, so let's call the alias 'commit'
+
+With the MAX versioning script installed to your repository, the next step is
+to create an alias to make it easier to access. How you add the alias depends
+on what shell you use. We provide examples for bash and fish below.
+
+Don't Forget
+============
+There's just one last step.  Edit the ssw_commit script to match the needs of
+the repository.  This might be as simple as editing the FILE declaration to
+point to the relative location of your `package.json` file. Critically, the
+script needs to know where to find the version number of the project.
+
+BASH alias
+==========
 ```bash
 alias commit='$(git rev-parse --show-toplevel)/.git/hooks/ssw_commit || git commit'
 ```
@@ -61,9 +79,14 @@ either open a new terminal or source the file to make the changes active.
 ```bash
 source ~/.bash_aliases
 ```
-There's just one last step.  Edit the ssw_commit script to match the needs of
-the repository.  This might be as simple as editing the FILE declaration to
-point to the relative location of your `package.json` file.
+FISH function
+=============
+```fish
+function commit
+  eval (git rev-parse --show-toplevel)/.git/hooks/ssw_commit; or git commit
+end
+```
+Put that line in your ```~/.config/fish/config.fish``` and open a new terminal.
 
 Usage
 =====
